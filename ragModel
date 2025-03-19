@@ -18,3 +18,47 @@ chunks = text_splitter.split_documents(data)
 vector_db = Chroma.from_documents(documents=chunks, 
                                   embedding=OllamaEmbeddings(model = "nomic-embed-text", show_progress=True),
                                   collection_name="local-rag")
+
+llm = ChatOllama(model = "llama3.2")
+
+multi_query_prompt = PromptTemplate(
+    input_variables=["question"],
+    template="""You are an assistant tasked with generating multiple search queries to help retrieve relevant documents from a vector database for answering the following question:
+
+    Original Question: {question}
+
+    Provide multiple search queries to help find the answer:"""
+)
+
+retriever = MultiQueryRetriever.from_llm(
+    retriever=vector_db.as_retriever(search_kwargs={"k": 3}),
+    llm=llm,
+    prompt=multi_query_prompt
+)
+
+answer_prompt = ChatPromptTemplate.from_template(
+    """You are a helpful AI assistant. Answer the question based ONLY on the following context:
+
+    Context:
+    {context}
+
+    Question: {question}
+
+    Answer:"""
+)
+
+#Build the correct runnable chain
+chain = (
+    RunnableMap({
+        "context": lambda x: retriever.get_relevant_documents(x["question"]),
+        "question": lambda x: x["question"]
+    })
+    | answer_prompt
+    | llm
+    | StrOutputParser()
+)
+
+#Test the chain clearly with a sample question
+question = "What skills are listed on the resume?"
+response = chain.invoke({"question": question})
+print(response)
