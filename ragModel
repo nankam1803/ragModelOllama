@@ -11,3 +11,10 @@ from langchain_core.output_parsers import StrOutputParser
 local_path = r"C:/Users/ankam/Documents/ragModelBoilerPlate/Resume_Summer25.pdf"
 loader = UnstructuredPDFLoader(file_path = local_path)
 data = loader.load()
+
+text_splitter = RecursiveCharacterTextSplitter(chunk_size = 1000, chunk_overlap = 200, length_function = len)
+chunks = text_splitter.split_documents(data)
+
+vector_db = Chroma.from_documents(documents=chunks, 
+                                  embedding=OllamaEmbeddings(model = "nomic-embed-text", show_progress=True),
+                                  collection_name="local-rag")
