@@ -6,10 +6,9 @@ This guide will help you quickly set up your Python project, including creating 
 
 Clone the repository from GitHub:
 
-git clone <your-repo-url>
-cd <your-repo-name>
+git clone <git@github.com:nankam1803/ragModelOllama.git>
+cd <ragModelOllama>
 
-Replace <your-repo-url> and <your-repo-name> with your actual repository information.
 
 ✅ Step 2: Create and Activate a Virtual Environment
 
@@ -38,7 +37,12 @@ Run your Python script or application:
 
 python ragModel.py
 
-Make sure to replace ragModel.py with your actual Python script filename.
+✅ Step 5: Change PDF and Question
+
+To customize the PDF file and the question you're asking, edit the Python script ragModel.py:
+
+local_path = r"your/path/to/your_file.pdf"  # Replace with your PDF path
+question = "Your custom question here"  # Replace with your question
 
 🚩 Troubleshooting
 
@@ -47,17 +51,13 @@ If you encounter errors related to Poppler (common when working with PDFs), foll
 Windows Users:
 
 Download Poppler.
-
 Extract it to a folder (e.g., C:\poppler).
-
 Add C:\poppler\Library\bin to your system PATH.
 
 macOS Users:
-
 brew install poppler
 
 Linux Users (Ubuntu/Debian):
-
 sudo apt-get install poppler-utils
 
 Then, restart your terminal and re-run your application.
