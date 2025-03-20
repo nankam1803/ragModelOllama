@@ -19,7 +19,7 @@ vector_db = Chroma.from_documents(documents=chunks,
                                   embedding=OllamaEmbeddings(model = "nomic-embed-text", show_progress=True),
                                   collection_name="local-rag")
 
-llm = ChatOllama(model = "llama3.2")
+llm = ChatOllama(model = "mistral")
 
 multi_query_prompt = PromptTemplate(
     input_variables=["question"],
