@@ -34,16 +34,27 @@ def split_documents(documents):
     logging.info(f"Split documents into {len(chunks)} chunks.")
     return chunks
 
-# Create or load vector database
 def get_vector_db(chunks):
-    ollama.pull(EMBEDDING_MODEL)
-    vector_db = Chroma.from_documents(
-        documents=chunks,
-        embedding=OllamaEmbeddings(model=EMBEDDING_MODEL),
-        persist_directory=VECTOR_STORE_DIR
-    )
-    vector_db.persist()
-    logging.info("Vector database ready and persisted locally.")
+    # Check if vector DB already exists locally
+    if os.path.exists(VECTOR_STORE_DIR) and os.listdir(VECTOR_STORE_DIR):
+        # Load the existing persisted database
+        logging.info("Loading existing vector database...")
+        vector_db = Chroma(
+            persist_directory=VECTOR_STORE_DIR,
+            embedding_function=OllamaEmbeddings(model=EMBEDDING_MODEL)
+        )
+    else:
+        # Pull embedding model and create a new database
+        logging.info("Creating new vector database...")
+        ollama.pull(EMBEDDING_MODEL)
+        vector_db = Chroma.from_documents(
+            documents=chunks,
+            embedding=OllamaEmbeddings(model=EMBEDDING_MODEL),
+            persist_directory=VECTOR_STORE_DIR
+        )
+        vector_db.persist()
+        logging.info("Vector database created and persisted locally.")
+
     return vector_db
 
 # Setup RetrievalQA chain
@@ -51,10 +62,19 @@ def setup_qa_chain(vector_db):
     llm = ChatOllama(model=MODEL_NAME)
     retriever = vector_db.as_retriever(search_kwargs={"k": 5})
     
-    prompt_template = """Answer the question based ONLY on the following context:
+    prompt_template = """
+You are a helpful and friendly university IT helpdesk assistant.
+
+Given the context below, answer the user's question accurately. 
+If the user's question is a general greeting, casual conversation, or not related to the provided context, respond in a friendly and conversational manner.
+
+Context:
 {context}
 
-Question: {question}
+User's Question:
+{question}
+
+Assistant Response:
 """
 
     prompt = ChatPromptTemplate.from_template(prompt_template)
@@ -94,7 +114,7 @@ def main():
         with st.chat_message(role):
             st.write(content)
 
-    user_input = st.chat_input("Ask your IT question here:")
+    user_input = st.chat_input("How can I help you?")
     if user_input:
         with st.chat_message("user"):
             st.write(user_input)
