@@ -14,7 +14,7 @@ import streamlit as st
 
 logging.basicConfig(level=logging.INFO)
 
-DOC_PATH = r"C:/Users/ankam/Documents/Nikhil Ankam lease (SIGNED).pdf"
+DOC_PATH = r"C:/Users/ankam/Documents/password-reset.pdf"
 MODEL_NAME = "llama3.2"
 EMBEDDING_MODEL = "nomic-embed-text"
 VECTOR_STORE_NAME = "simple-rag"
@@ -58,12 +58,13 @@ def create_retriever(vector_db, llm):
     """Create a multi-query retriever."""
     QUERY_PROMPT = PromptTemplate(
         input_variables=["question"],
-        template="""You are an AI language model assistant. Your task is to generate five
-different versions of the given user question to retrieve relevant documents from
-a vector database. By generating multiple perspectives on the user question, your
-goal is to help the user overcome some of the limitations of the distance-based
-similarity search. Provide these alternative questions separated by newlines.
-Original question: {question}""",
+        template="""You are an AI assistant with two roles:
+                    If the user's question is a general conversational query (e.g., greetings, casual talk, time, weather), respond naturally and conversationally.
+                    If the user's question pertains to specific details in a document, your task is to generate five different alternative versions of the user's original question. 
+                    These variations will be used to retrieve relevant documents from a vector database, helping the user overcome limitations of the distance-based similarity search.
+                    For general questions, answer directly and conversationally.
+                    For document-related questions, provide five alternative queries clearly separated by newlines.
+                    Original question: {question}""",
     )
 
     retriever = MultiQueryRetriever.from_llm(
@@ -95,40 +96,54 @@ Question: {question}
 
 
 def main():
-    data = ingest_pdf(DOC_PATH)
-    if data is None:
-        return
-        
-    chunks = split_documents(data)
-    
-    # Create the vector database
-    vector_db = create_vector_db(chunks)
+    st.title("📚 Welcome to your AI Document Assistant")
 
-    # Initialize the language model
-    llm = ChatOllama(model=MODEL_NAME)
+    # Initialize chat history in session state
+    if "messages" not in st.session_state:
+        st.session_state["messages"] = []
 
-    st.title("Welcome to your AI Document Assistant")
+    # Load PDF and create embeddings only once
+    if "vector_db" not in st.session_state:
+        with st.spinner("Loading and processing PDF..."):
+            data = ingest_pdf(DOC_PATH)
+            if data is None:
+                st.error("Could not load document.")
+                return
+            chunks = split_documents(data)
+            st.session_state.vector_db = Chroma.from_documents(
+                chunks,
+                embedding=OllamaEmbeddings(model=EMBEDDING_MODEL),
+                collection_name=VECTOR_STORE_NAME
+            )
+            st.session_state.llm = ChatOllama(model=MODEL_NAME)
+            st.session_state.retriever = create_retriever(st.session_state.vector_db, st.session_state.llm)
+            st.session_state.chain = create_chain(st.session_state.retriever, st.session_state.llm)
 
-    user_input = st.chat_input ("How can I help you?")
-    
+    # Display chat history
+    for message in st.session_state.messages:
+        if message["role"] == "user":
+            with st.chat_message("user"):
+                st.write(message["content"])
+        elif message["role"] == "assistant":
+            with st.chat_message("assistant"):
+                st.write(message["content"])
+
+    # Handle new user input
+    user_input = st.chat_input("How can I help you?")
     if user_input:
+        # Display user's question immediately
+        with st.chat_message("user"):
+            st.write(user_input)
+        st.session_state.messages.append({"role": "user", "content": user_input})
 
-        with st.spinner("Generating response..."):
-            try:
-                    # Create the retriever
-                    retriever = create_retriever(vector_db, llm)
-
-                    # Create the chain with preserved syntax
-                    chain = create_chain(retriever, llm)
-
-                    # Get the response
-                    res = chain.invoke(input=user_input)
+        with st.chat_message("assistant"):
+            with st.spinner("Generating response..."):
+                try:
+                    res = st.session_state.chain.invoke(user_input)
                     st.write(res)
-            except Exception as e:
-                st.error("An error occured...")
-    else:
-        st.info("Please enter a question to get started...")
-
+                    st.session_state.messages.append({"role": "assistant", "content": res})
+                except Exception as e:
+                    st.error(f"An error occurred: {str(e)}")
 
 if __name__ == "__main__":
     main()
