@@ -70,7 +70,8 @@ Question: {question}
 # Streamlit App
 
 def main():
-    st.title("📚 UToledo IT Helpdesk Chatbot")
+    st.image("UTLogo.png", width=150)
+    st.title("IT Helpdesk Chatbot")
 
     # Initialize once
     if "qa_chain" not in st.session_state:
